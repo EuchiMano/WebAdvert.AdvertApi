@@ -32,8 +32,24 @@ public class DynamoDbAdvertStorage : IAdvertStorageService
 		return dbModel.Id;
 	}
 
-	public Task<bool> Confirm(ConfirmAdvertModel model)
+	public async Task Confirm(ConfirmAdvertModel model)
 	{
-		throw new NotImplementedException();
+		using (var client = new AmazonDynamoDBClient())
+		{
+			using (var context = new DynamoDBContext(client))
+			{
+				var record = await context.LoadAsync<AdvertDbModel>(model.Id);
+				if (record is null) throw new KeyNotFoundException($"A record with Id={model.Id} was not found.");
+				if (model.Status is AdvertStatus.Active)
+				{
+					record.Status = AdvertStatus.Active;
+					await context.SaveAsync(record);
+				}
+				else
+				{
+					await context.DeleteAsync(record);
+				}
+			}
+		}
 	}
 }
